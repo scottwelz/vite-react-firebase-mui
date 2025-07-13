@@ -20,11 +20,9 @@ import {
 } from '@mui/material';
 
 // project imports
-import MainCard from '../MainCard';
 import Transitions from '../Transitions';
 
 // icons
-import LogoutIcon from '@mui/icons-material/Logout';
 import SettingsIcon from '@mui/icons-material/Settings';
 
 // hooks
@@ -35,7 +33,8 @@ import { useAuth } from '../../contexts/AuthContext';
 const Profile: React.FC = () => {
     const theme = useTheme();
     const navigate = useNavigate();
-    const { currentUser, logout } = useAuth();
+    // The new AuthContext doesn't have a logout function for anonymous users
+    const { currentUser } = useAuth();
 
     const anchorRef = useRef<HTMLButtonElement | null>(null);
     const [open, setOpen] = useState(false);
@@ -51,14 +50,16 @@ const Profile: React.FC = () => {
         setOpen(false);
     };
 
+    /*
     const handleLogout = async () => {
         try {
             setOpen(false);
-            await logout();
+            // await logout(); // logout() is not available for anonymous users in this context
         } catch (error) {
             console.error('Error logging out:', error);
         }
     };
+    */
 
     const handleSettings = () => {
         setOpen(false);
@@ -66,8 +67,9 @@ const Profile: React.FC = () => {
     };
 
     // Extract user information
-    const userName = currentUser?.displayName || 'User';
-    const userEmail = currentUser?.email || '';
+    const userName = currentUser?.profile?.displayName || 'User';
+    // The email is on the firebaseUser object, not the profile
+    const userEmail = currentUser?.firebaseUser?.email || '';
     const userInitial = userName.charAt(0).toUpperCase();
 
     return (
@@ -130,7 +132,7 @@ const Profile: React.FC = () => {
                             }}
                         >
                             <ClickAwayListener onClickAway={handleClose}>
-                                <MainCard elevation={0} border={false} content={false}>
+                                <Box> {/* Replace MainCard with a simple Box */}
                                     {/* User Info Section */}
                                     <Box sx={{ p: 2.5, borderBottom: `1px solid ${theme.palette.divider}` }}>
                                         <Stack direction="row" spacing={1.5} alignItems="center">
@@ -170,6 +172,7 @@ const Profile: React.FC = () => {
 
                                             <Divider />
 
+                                            {/*
                                             <ListItemButton onClick={handleLogout} sx={{ py: 1.5 }}>
                                                 <ListItemIcon sx={{ minWidth: 36 }}>
                                                     <LogoutIcon fontSize="small" />
@@ -179,9 +182,10 @@ const Profile: React.FC = () => {
                                                     primaryTypographyProps={{ variant: 'body2' }}
                                                 />
                                             </ListItemButton>
+                                            */}
                                         </List>
                                     </Box>
-                                </MainCard>
+                                </Box>
                             </ClickAwayListener>
                         </Paper>
                     </Transitions>

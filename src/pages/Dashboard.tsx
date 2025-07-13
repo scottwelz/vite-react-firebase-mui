@@ -1,64 +1,132 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Button,
     Container,
     Typography,
-    Paper,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import {
     AddCircleOutline as AddIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import WagerCard from '../components/WagerCard';
+import NewWagerModal from '../components/NewWagerModal';
+import { onWagersUpdate, type Wager } from '../services/wagerService';
+import { generateActivityFeed, type Activity } from '../services/activityService';
+import ActivityFeed from '../components/ActivityFeed';
+import { useAuth } from '../contexts/AuthContext';
 
 const Dashboard: React.FC = () => {
-    const navigate = useNavigate();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [wagers, setWagers] = useState<Wager[]>([]);
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [loading, setLoading] = useState(true);
+    const theme = useTheme();
+    const isDesktop = useMediaQuery(theme.breakpoints.up('md'));
+    const { currentUser } = useAuth();
 
-    const handleGenericAction = () => {
-        navigate('/some-other-page');
-    };
+
+    useEffect(() => {
+        if (!currentUser) {
+            setLoading(true);
+            return;
+        }
+        setLoading(true);
+        const unsubscribe = onWagersUpdate((newWagers) => {
+            const activeWagers = newWagers.filter(wager => wager.status !== 'cancelled');
+            setWagers(activeWagers);
+            try {
+                const newActivities = generateActivityFeed(newWagers);
+                setActivities(newActivities);
+            } catch (error) {
+                console.error("Error processing wager data:", error);
+                setActivities([]); // Clear activities on error
+            } finally {
+                setLoading(false); // This will now always run
+            }
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, [currentUser]);
 
     return (
-        <Container maxWidth="lg" sx={{ pt: 2, pb: 4 }}>
-            <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 4 }}
-            >
-                <Box>
-                    <Typography variant="h4" component="h1" gutterBottom fontWeight={600}>
-                        Dashboard
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary">
-                        Welcome to your dashboard.
-                    </Typography>
+        <Box>
+            <Container maxWidth="xl" sx={{ pt: 4, pb: 4 }}>
+                <Box
+                    display="grid"
+                    gridTemplateColumns={{ xs: '1fr', md: '2fr 1fr' }} // 2/3 for wagers, 1/3 for feed on desktop
+                    gap={4}
+                >
+                    {/* Wager Board Column */}
+                    <Box>
+                        <Box sx={{ textAlign: 'center', mb: 6 }}>
+                            <Typography variant="h2" component="h1">
+                                The Wager Board
+                            </Typography>
+                            <Typography variant="h6" color="text.secondary">
+                                Current goings-on and bets
+                            </Typography>
+                        </Box>
+
+                        {loading ? (
+                            <Typography sx={{ textAlign: 'center' }}>Loading wagers...</Typography>
+                        ) : !currentUser ? (
+                            <Typography sx={{ textAlign: 'center', color: 'text.secondary' }}>
+                                Please log in to see wagers.
+                            </Typography>
+                        ) : wagers.length === 0 ? (
+                            <Typography sx={{ textAlign: 'center', color: 'text.secondary' }}>
+                                No wagers yet. Why not post one?
+                            </Typography>
+                        ) : (
+                            <Box
+                                display="grid"
+                                gridTemplateColumns={{
+                                    xs: 'repeat(1, 1fr)',
+                                    sm: 'repeat(2, 1fr)',
+                                    lg: 'repeat(3, 1fr)',
+                                }}
+                                gap={4}
+                            >
+                                {wagers.map((wager) => (
+                                    <WagerCard wager={wager} key={wager.id} />
+                                ))}
+                            </Box>
+                        )}
+                    </Box>
+
+                    {/* Activity Feed Column - Only on Desktop */}
+                    {isDesktop && (
+                        <Box>
+                            <ActivityFeed activities={activities} />
+                        </Box>
+                    )}
                 </Box>
+
+                {/* Floating Action Button for New Wager */}
                 <Button
                     variant="contained"
+                    color="primary"
                     startIcon={<AddIcon />}
-                    onClick={handleGenericAction}
-                    size="large"
+                    onClick={() => setIsModalOpen(true)}
+                    sx={{
+                        position: 'fixed',
+                        bottom: 24,
+                        right: 24,
+                        borderRadius: '50px',
+                        py: 1.5,
+                        px: 3,
+                        boxShadow: 3,
+                    }}
                 >
-                    Perform Action
+                    New Wager
                 </Button>
-            </Box>
 
-            <Paper elevation={0} sx={{ p: 4, textAlign: 'center' }}>
-                <Typography variant="h6" gutterBottom>
-                    Dashboard Content Area
-                </Typography>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>
-                    This is where your main dashboard content will go. Add components, data visualizations, or summaries here.
-                </Typography>
-                <Button
-                    variant="outlined"
-                    onClick={() => alert('Another action clicked!')}
-                >
-                    Another Action
-                </Button>
-            </Paper>
-        </Container>
+                <NewWagerModal open={isModalOpen} onClose={() => setIsModalOpen(false)} />
+            </Container>
+        </Box>
     );
 };
 

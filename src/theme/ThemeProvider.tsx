@@ -98,7 +98,7 @@ declare module '@mui/material/styles' {
 }
 
 export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ children }) => {
-    const [mode, setMode] = useState<'light' | 'dark'>('light');
+    const [mode, setMode] = useState<'light' | 'dark'>('dark'); // Default to dark mode
 
     // Toggle function to switch themes and expose current mode
     const colorMode = useMemo(
@@ -231,14 +231,14 @@ export const CustomThemeProvider: React.FC<CustomThemeProviderProps> = ({ childr
                     },
                     background: mode === 'light'
                         ? { default: '#f4f6f8', paper: '#ffffff' }
-                        : { default: '#121212', paper: '#1e1e1e' },
+                        : { default: '#121212', paper: '#1E1E1E' }, // Dark theme background
                     text: mode === 'light'
-                        ? { primary: '#333333', secondary: '#555555' }
-                        : { primary: '#ffffff', secondary: '#bbbbbb' },
-                    divider: mode === 'light' ? '#e0e0e0' : '#444',
+                        ? { primary: '#212121', secondary: '#616161' }
+                        : { primary: '#E0E0E0', secondary: '#BDBDBD' },
+                    divider: mode === 'light' ? '#e0e0e0' : 'rgba(255, 255, 255, 0.12)',
                 },
                 typography: {
-                    fontFamily: '"Montserrat", "Roboto", "Helvetica", "Arial", sans-serif',
+                    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
                     h1: {
                         fontWeight: 700,
                         fontSize: '2.5rem',

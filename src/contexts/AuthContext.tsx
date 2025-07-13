@@ -1,135 +1,130 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut,
     onAuthStateChanged,
-    sendPasswordResetEmail,
+    signInAnonymously,
     updateProfile,
     User,
-    UserCredential
 } from 'firebase/auth';
 import { auth, db } from '../firebaseConfig';
-import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore'; // Import Firestore functions
-import { Box, CircularProgress } from '@mui/material';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
-type ExtendedUser = User; // Use basic User type
+export interface UserProfile {
+    uid: string;
+    displayName: string;
+    points: number;
+    createdAt: any;
+}
 
-// Define the shape of our auth context
+type AppUser = {
+    firebaseUser: User;
+    profile: UserProfile | null;
+};
+
 interface AuthContextType {
-    currentUser: ExtendedUser | null;
+    currentUser: AppUser | null;
     loading: boolean;
-    signup: (email: string, password: string, displayName?: string) => Promise<UserCredential>; // Simplified signup signature
-    login: (email: string, password: string) => Promise<UserCredential>;
-    logout: () => Promise<void>;
-    resetPassword: (email: string) => Promise<void>;
+    signIn: () => Promise<User>;
+    createUsername: (user: User, displayName: string) => Promise<void>;
     updateUserProfile: (displayName: string) => Promise<void>;
 }
 
-// Create the auth context with default values
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-// Custom hook to use the auth context
 export const useAuth = () => {
     return useContext(AuthContext);
 };
 
-// Auth provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState<ExtendedUser | null>(null);
+    // Separate states for Firebase user and our custom profile
+    const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const signup = async (email: string, password: string, displayName?: string): Promise<UserCredential> => {
+    const signIn = async () => {
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const userId = userCredential.user.uid;
-
-            if (userCredential.user) {
-                // Update Firebase Auth profile
-                await updateProfile(userCredential.user, { displayName });
-
-                // Create user document in Firestore
-                const userData = {
-                    uid: userId,
-                    email,
-                    displayName,
-                    createdAt: serverTimestamp(),
-                    updatedAt: serverTimestamp()
-                };
-                await setDoc(doc(db, 'users', userId), userData);
-            }
-
-            return userCredential; // Return the user credential
+            const userCredential = await signInAnonymously(auth);
+            return userCredential.user;
         } catch (error) {
-            console.error('[AuthContext] signup: Error during signup:', error);
+            console.error("Error signing in anonymously:", error);
             throw error;
         }
     };
 
-    const login = (email: string, password: string) => {
-        return signInWithEmailAndPassword(auth, email, password);
-    };
+    const updateUserProfile = async (newDisplayName: string) => {
+        if (firebaseUser) {
+            // Update profile in Firebase Auth
+            await updateProfile(firebaseUser, { displayName: newDisplayName });
 
-    const logout = () => {
-        return signOut(auth);
-    };
+            // Update profile in Firestore
+            const userDocRef = doc(db, 'users', firebaseUser.uid);
+            await setDoc(userDocRef, { displayName: newDisplayName }, { merge: true });
 
-    const resetPassword = (email: string) => {
-        return sendPasswordResetEmail(auth, email);
-    };
-
-    const updateUserProfile = async (displayName: string) => {
-        if (currentUser) {
-            await updateProfile(currentUser, { displayName });
-            // Optionally update Firestore user document as well if needed
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            await updateDoc(userDocRef, { displayName, updatedAt: serverTimestamp() });
-            // Refresh currentUser state if Firestore data is the source of truth
-            const updatedUser = { ...currentUser, displayName };
-            setCurrentUser(updatedUser);
+            // Update local state
+            if (userProfile) {
+                setUserProfile({ ...userProfile, displayName: newDisplayName });
+            }
+        } else {
+            throw new Error("No user is signed in to update the profile.");
         }
+    };
+
+    const createUsername = async (user: User, displayName: string) => {
+        const profile: UserProfile = {
+            uid: user.uid,
+            displayName,
+            points: 10000,
+            createdAt: serverTimestamp(),
+        };
+        // Set the profile in Firestore first
+        await setDoc(doc(db, 'users', user.uid), profile);
+
+        // Then update the auth profile
+        await updateProfile(user, { displayName });
+
+        // Finally, update the local state to ensure consistency
+        setUserProfile(profile);
     };
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            setLoading(true);
-
             if (user) {
+                setFirebaseUser(user); // Store the original Firebase user object
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
 
-                setCurrentUser(user);
-
+                if (userDoc.exists()) {
+                    setUserProfile(userDoc.data() as UserProfile);
+                } else {
+                    setUserProfile(null);
+                }
             } else {
-                setCurrentUser(null);
+                setFirebaseUser(null);
+                setUserProfile(null);
             }
             setLoading(false);
         });
 
-        return () => {
-            unsubscribe();
-        };
+        return () => unsubscribe();
     }, []);
 
-    // Value to be provided by the context
+    // Combine the user and profile into a single object for consumers of the context
+    const currentUser: AppUser | null = firebaseUser
+        ? { firebaseUser, profile: userProfile }
+        : null;
+
     const value: AuthContextType = {
         currentUser,
         loading,
-        signup,
-        login,
-        logout,
-        resetPassword,
-        updateUserProfile,
+        signIn,
+        createUsername,
+        updateUserProfile
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-                    <CircularProgress />
-                </Box>
-            ) : children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 };
 
-// Export the context
 export { AuthContext }; 

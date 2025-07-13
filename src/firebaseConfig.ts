@@ -1,7 +1,7 @@
 // webapp/src/firebaseConfig.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import {
     getAnalytics,
     logEvent,
@@ -27,7 +27,9 @@ const app = initializeApp(firebaseConfig);
 
 // Get Firebase services
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+    localCache: memoryLocalCache(),
+});
 
 // Initialize Analytics - only in browser environment (not during SSR)
 let analytics: Analytics | null = null;

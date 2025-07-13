@@ -1,55 +1,49 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext'; // Assuming useAuth hook provides user state
-import { useAnalytics } from './hooks/useAnalytics'; // Import our analytics hook
-
-// Import your page components
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
+import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import Leaderboard from './pages/Leaderboard';
+import Activity from './pages/Activity';
+import Landing from './pages/Landing';
 
-// Import Layout and ProtectedRoute components
-import { Layout } from './components/Layout';
-import ProtectedRoute from './components/ProtectedRoute';
-
-function App() {
+const ProtectedRoute = () => {
   const { currentUser } = useAuth();
 
-  // Initialize analytics (page tracking happens automatically inside the hook)
-  useAnalytics();
+  if (!currentUser) {
+    return <Navigate to="/" />;
+  }
+
+  // Since the landing page now handles username creation,
+  // we just need to make sure we have a user.
+  // The profile might still be loading, but as long as a user exists, we can proceed.
+  return <Layout />;
+};
+
+
+const App = () => {
+  const { currentUser, loading } = useAuth();
+
+  if (loading) {
+    return <div className="bg-gray-900 text-white min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Router>
+      <Routes>
+        <Route path="/" element={currentUser ? <Navigate to="/dashboard" /> : <Landing />} />
 
-      {/* Root redirect */}
-      <Route
-        path="/"
-        element={
-          currentUser ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
-        }
-      />
-
-      {/* Protected routes nested inside Layout */}
-      <Route element={<ProtectedRoute />}>
-        <Route element={<Layout />}>
+        <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
-
-          {/* Settings page */}
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/activity" element={<Activity />} />
           <Route path="/settings" element={<Settings />} />
-
-          {/* Add more protected routes here as needed */}
         </Route>
-      </Route>
 
-      {/* Catch-all route for 404 */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
   );
-}
+};
 
 export default App;

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+
 import { trackEvent, trackUserIdentity, trackUserProperties } from '../firebaseConfig';
 
 /**
@@ -8,7 +8,7 @@ import { trackEvent, trackUserIdentity, trackUserProperties } from '../firebaseC
  */
 export const useAnalytics = () => {
     const location = useLocation();
-    const { currentUser } = useAuth();
+
 
     // Track page views
     useEffect(() => {
@@ -21,19 +21,19 @@ export const useAnalytics = () => {
     }, [location]);
 
     // Track user identity when they log in
-    useEffect(() => {
-        if (currentUser?.uid) {
-            // Identify user for analytics
-            trackUserIdentity(currentUser.uid);
+    // useEffect(() => {
+    //     if (currentUser?.uid) {
+    //         // Identify user for analytics
+    //         trackUserIdentity(currentUser.uid);
 
-            // Set user properties
-            trackUserProperties({
-                user_id: currentUser.uid,
-                email_verified: currentUser.emailVerified,
-                // Add any other properties you want to track
-            });
-        }
-    }, [currentUser]);
+    //         // Set user properties
+    //         trackUserProperties({
+    //             user_id: currentUser.uid,
+    //             email_verified: currentUser.emailVerified,
+    //             // Add any other properties you want to track
+    //         });
+    //     }
+    // }, [currentUser]);
 
     return {
         // Return our tracking functions for use in components

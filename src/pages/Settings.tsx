@@ -27,7 +27,7 @@ const Settings: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
-    const [displayName, setDisplayName] = useState(currentUser?.displayName || '');
+    const [displayName, setDisplayName] = useState(currentUser?.profile?.displayName || '');
 
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -111,14 +111,7 @@ const Settings: React.FC = () => {
                             variant="outlined"
                         />
 
-                        <TextField
-                            label="Email Address"
-                            value={currentUser?.email || ''}
-                            fullWidth
-                            variant="outlined"
-                            disabled
-                            helperText="Email cannot be changed"
-                        />
+
 
                         <Box>
                             <Button
